@@ -1,4 +1,4 @@
-# main.py
+# main.py Parte 2
 from gui import App
 
 def main():

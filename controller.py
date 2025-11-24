@@ -1,4 +1,4 @@
-# controller.py
+# controller.py parte 2
 from models import Inventario, Producto, Carrito, Usuario
 import db
 from typing import Dict, List

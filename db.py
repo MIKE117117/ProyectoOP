@@ -1,4 +1,4 @@
-# db.py
+# db.py parte 2
 import os
 from dotenv import load_dotenv
 import mysql.connector
