@@ -1,4 +1,4 @@
-# gui.py
+# gui.py parte 2
 import tkinter as tk
 from tkinter import messagebox, ttk
 from models import Producto, Carrito
