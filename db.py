@@ -1,3 +1,4 @@
+# db.py
 import os
 from dotenv import load_dotenv
 import mysql.connector
@@ -16,7 +17,6 @@ DB_CONFIG = {
     "autocommit": False,
     "charset": "utf8mb4",
 }
-
 
 POOL_NAME = os.getenv("POOL_NAME", "proyecto2_pool")
 POOL_SIZE = int(os.getenv("POOL_SIZE", 5))
@@ -58,12 +58,13 @@ def init_db():
     try:
         cur = conn.cursor()
 
-        # Tabla usuarios (correo único)
+        # Tabla usuarios (correo único + rol)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 nombre VARCHAR(100) NOT NULL,
                 correo VARCHAR(150) NOT NULL UNIQUE,
+                rol VARCHAR(20) NOT NULL DEFAULT 'cliente',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -104,6 +105,16 @@ def init_db():
             )
         """)
 
+        # Crear admin por defecto si no existe
+        cur.execute("SELECT COUNT(*) FROM usuarios WHERE rol = 'admin'")
+        (count_admin,) = cur.fetchone()
+        if count_admin == 0:
+            cur.execute(
+                "INSERT INTO usuarios (nombre, correo, rol) VALUES (%s, %s, %s)",
+                ("Administrador", "admin@mcd.com", "admin")
+            )
+            print("Usuario administrador creado: admin@mcd.com")
+
         conn.commit()
         print("Tablas verificadas/creadas correctamente.")
 
@@ -117,6 +128,7 @@ def init_db():
 
 
 # ========== CRUD USUARIOS ==========
+
 def get_usuario(uid):
     conn = get_conn()
     if not conn:
@@ -151,7 +163,7 @@ def get_usuario_por_correo(correo):
         conn.close()
 
 
-def create_usuario(nombre, correo):
+def create_usuario(nombre, correo, rol="cliente"):
     """
     Crea un usuario nuevo si el correo no existe.
     Si el correo ya existe, regresa el id del usuario existente.
@@ -162,8 +174,8 @@ def create_usuario(nombre, correo):
 
     try:
         cur = conn.cursor()
-        sql = "INSERT INTO usuarios (nombre, correo) VALUES (%s, %s)"
-        cur.execute(sql, (nombre, correo))
+        sql = "INSERT INTO usuarios (nombre, correo, rol) VALUES (%s, %s, %s)"
+        cur.execute(sql, (nombre, correo, rol))
         conn.commit()
         return cur.lastrowid
 
@@ -189,6 +201,7 @@ def create_usuario(nombre, correo):
 
 
 # ========== CRUD PRODUCTOS ==========
+
 def create_producto(nombre, precio, cantidad):
     conn = get_conn()
     if not conn:
@@ -245,6 +258,26 @@ def get_producto(pid):
         conn.close()
 
 
+def update_producto(pid, nombre, precio, cantidad):
+    conn = get_conn()
+    if not conn:
+        return False
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE productos SET nombre=%s, precio=%s, cantidad=%s WHERE id=%s",
+            (nombre, precio, cantidad, pid)
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    except Error as e:
+        print("Error al actualizar producto:", e)
+        return False
+    finally:
+        cur.close()
+        conn.close()
+
+
 def update_producto_stock(pid, nueva_cantidad):
     conn = get_conn()
     if not conn:
@@ -264,7 +297,8 @@ def update_producto_stock(pid, nueva_cantidad):
         conn.close()
 
 
-# ========== CRUD PEDIDOS ==========
+# ========== CRUD PEDIDOS / HISTORIAL ==========
+
 def crear_pedido(usuario_id, tipo_entrega, items):
     """
     items es una lista de tuplas: (producto_id, cantidad)

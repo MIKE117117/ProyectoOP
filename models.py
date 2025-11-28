@@ -19,47 +19,27 @@ class Producto:
 
 
 class Usuario:
-    def __init__(self, usuario_id: int, nombre: str, correo: str):
+    def __init__(self, usuario_id: int, nombre: str, correo: str, rol: str = "cliente"):
         self.usuario_id = usuario_id
         self.nombre = nombre
         self.correo = correo
+        self.rol = rol
 
     def mostrar_datos(self):
-        return f"{self.nombre} <{self.correo}>"
-
-
-class Empleado(Usuario):
-    def __init__(self, usuario_id: int, nombre: str, correo: str, puesto: str):
-        super().__init__(usuario_id, nombre, correo)
-        self.puesto = puesto
-
-    def preparar_pedido(self, pedido_id: int):
-        return f"Empleado {self.nombre} preparando pedido #{pedido_id}"
-
-
-class Pago:
-    def __init__(self, metodo: str, monto: float, aprobado: bool = False):
-        self.metodo = metodo
-        self.monto = float(monto)
-        self.aprobado = aprobado
-        self.fecha = datetime.now()
-
-    def aprobar(self):
-        self.aprobado = True
-        return self.aprobado
+        return f"{self.nombre} <{self.correo}> ({self.rol})"
 
 
 class Pedido:
-    def __init__(self, pedido_id: int, usuario_id: int, tipo_entrega: str = "mostrador"):
+    def __init__(self, pedido_id: int, usuario_id: int, tipo_entrega: str="mostrador"):
         self.pedido_id = pedido_id
         self.usuario_id = usuario_id
-        self.tipo_entrega = tipo_entrega  # 'mostrador' o 'mesa'
-        self.items: Dict[int, int] = {}   # producto_id -> cantidad
+        self.tipo_entrega = tipo_entrega
+        self.items: Dict[int, int] = {}  # producto_id -> cantidad
         self.total = 0.0
-        self.estado = "creado"  # creado, pagado, listo, entregado
+        self.estado = "creado"
         self.created_at = datetime.now()
 
-    def agregar_item(self, producto: Producto, cantidad: int = 1):
+    def agregar_item(self, producto: Producto, cantidad: int=1):
         cantidad = int(cantidad)
         if producto.producto_id in self.items:
             self.items[producto.producto_id] += cantidad
@@ -67,7 +47,7 @@ class Pedido:
             self.items[producto.producto_id] = cantidad
         self.total += producto.precio * cantidad
 
-    def remover_item(self, producto: Producto, cantidad: int = 1):
+    def remover_item(self, producto: Producto, cantidad: int=1):
         pid = producto.producto_id
         cantidad = int(cantidad)
         if pid in self.items:
@@ -75,12 +55,6 @@ class Pedido:
             if self.items[pid] <= 0:
                 del self.items[pid]
             self.total = max(0.0, self.total - producto.precio * cantidad)
-
-    def marcar_pagado(self):
-        self.estado = "pagado"
-
-    def marcar_listo(self):
-        self.estado = "listo"
 
     def __repr__(self):
         return f"Pedido(id={self.pedido_id}, usuario={self.usuario_id}, total={self.total}, estado={self.estado})"
@@ -91,11 +65,11 @@ class Carrito:
         self.usuario_id = usuario_id
         self.items: Dict[int, int] = {}  # producto_id -> cantidad
 
-    def add(self, producto: Producto, cantidad: int = 1):
+    def add(self, producto: Producto, cantidad: int=1):
         cantidad = int(cantidad)
         self.items[producto.producto_id] = self.items.get(producto.producto_id, 0) + cantidad
 
-    def remove(self, producto: Producto, cantidad: int = 1):
+    def remove(self, producto: Producto, cantidad: int=1):
         pid = producto.producto_id
         cantidad = int(cantidad)
         if pid in self.items:
