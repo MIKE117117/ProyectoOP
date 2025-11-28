@@ -1,4 +1,4 @@
-# main.py
+
 from gui import App
 import db
 
