@@ -1,4 +1,3 @@
-# db.py
 import os
 from dotenv import load_dotenv
 import mysql.connector
@@ -17,6 +16,7 @@ DB_CONFIG = {
     "autocommit": False,
     "charset": "utf8mb4",
 }
+
 
 POOL_NAME = os.getenv("POOL_NAME", "proyecto2_pool")
 POOL_SIZE = int(os.getenv("POOL_SIZE", 5))
