@@ -48,6 +48,7 @@ def get_conn():
 def init_db():
     """
     Crea las tablas si no existen.
+    Asegúrate de que la estructura coincida con tu diseño.
     """
     conn = get_conn()
     if not conn:
@@ -57,12 +58,12 @@ def init_db():
     try:
         cur = conn.cursor()
 
-        # Tabla usuarios
+        # Tabla usuarios (correo único)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 nombre VARCHAR(100) NOT NULL,
-                correo VARCHAR(150) NOT NULL,
+                correo VARCHAR(150) NOT NULL UNIQUE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -116,7 +117,45 @@ def init_db():
 
 
 # ========== CRUD USUARIOS ==========
+def get_usuario(uid):
+    conn = get_conn()
+    if not conn:
+        return None
+    try:
+        cur = conn.cursor(dictionary=True)
+        cur.execute("SELECT * FROM usuarios WHERE id = %s", (uid,))
+        row = cur.fetchone()
+        return row
+    except Error as e:
+        print("Error al obtener usuario:", e)
+        return None
+    finally:
+        cur.close()
+        conn.close()
+
+
+def get_usuario_por_correo(correo):
+    conn = get_conn()
+    if not conn:
+        return None
+    try:
+        cur = conn.cursor(dictionary=True)
+        cur.execute("SELECT * FROM usuarios WHERE correo = %s", (correo,))
+        row = cur.fetchone()
+        return row
+    except Error as e:
+        print("Error al obtener usuario por correo:", e)
+        return None
+    finally:
+        cur.close()
+        conn.close()
+
+
 def create_usuario(nombre, correo):
+    """
+    Crea un usuario nuevo si el correo no existe.
+    Si el correo ya existe, regresa el id del usuario existente.
+    """
     conn = get_conn()
     if not conn:
         return None
@@ -130,25 +169,20 @@ def create_usuario(nombre, correo):
 
     except Error as e:
         print("Error al crear usuario:", e)
+        # 1062 = Duplicate entry
+        if e.errno == 1062:
+            # ya existe ese correo, regresamos su id
+            try:
+                cur2 = conn.cursor(dictionary=True)
+                cur2.execute("SELECT id FROM usuarios WHERE correo = %s", (correo,))
+                row = cur2.fetchone()
+                if row:
+                    return row["id"]
+            except Error as e2:
+                print("Error al obtener usuario existente:", e2)
+                return None
         return None
 
-    finally:
-        cur.close()
-        conn.close()
-
-
-def get_usuario(uid):
-    conn = get_conn()
-    if not conn:
-        return None
-    try:
-        cur = conn.cursor(dictionary=True)
-        cur.execute("SELECT * FROM usuarios WHERE id = %s", (uid,))
-        row = cur.fetchone()
-        return row
-    except Error as e:
-        print("Error al obtener usuario:", e)
-        return None
     finally:
         cur.close()
         conn.close()
@@ -259,7 +293,7 @@ def crear_pedido(usuario_id, tipo_entrega, items):
             if not prod:
                 continue
 
-            precio_unit = prod["precio"]
+            precio_unit = float(prod["precio"])
 
             # detalle
             cur.execute(
@@ -271,7 +305,7 @@ def crear_pedido(usuario_id, tipo_entrega, items):
             total += precio_unit * cantidad
 
             # actualizar stock
-            new_stock = prod["cantidad"] - cantidad
+            new_stock = int(prod["cantidad"]) - cantidad
             if new_stock < 0:
                 new_stock = 0
 
@@ -325,22 +359,27 @@ def get_pedido(pid):
         conn.close()
 
 
-# ========== EXTRA: verificar si hay productos ==========
-def hay_productos():
+def listar_pedidos_por_usuario(usuario_id):
     """
-    Regresa True si existen productos en la tabla, False si está vacía o hay error.
+    Regresa una lista de pedidos con datos básicos para un usuario dado.
     """
     conn = get_conn()
     if not conn:
-        return False
+        return []
+
     try:
-        cur = conn.cursor()
-        cur.execute("SELECT COUNT(*) FROM productos")
-        (count,) = cur.fetchone()
-        return count > 0
+        cur = conn.cursor(dictionary=True)
+        cur.execute("""
+            SELECT id, tipo_entrega, total, estado, created_at
+            FROM pedidos
+            WHERE usuario_id = %s
+            ORDER BY created_at DESC
+        """, (usuario_id,))
+        rows = cur.fetchall()
+        return rows
     except Error as e:
-        print("Error al contar productos:", e)
-        return False
+        print("Error al listar pedidos por usuario:", e)
+        return []
     finally:
         cur.close()
         conn.close()

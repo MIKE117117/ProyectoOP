@@ -54,7 +54,11 @@ class TestModelsAndDB(unittest.TestCase):
         self.assertEqual(int(prod['cantidad']), 7)
 
     def test_db_create_usuario_and_pedido(self):
-        uid = db.create_usuario("Test User", "testuser@example.com")
+        # correo único usando timestamp
+        import time
+        correo_unico = f"testuser_{int(time.time())}@example.com"
+
+        uid = db.create_usuario("Test User", correo_unico)
         self.assertIsNotNone(uid, "create_usuario regresó None, hay problema de conexión o inserción.")
 
         # crear producto

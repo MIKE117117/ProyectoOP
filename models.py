@@ -54,7 +54,7 @@ class Pedido:
         self.pedido_id = pedido_id
         self.usuario_id = usuario_id
         self.tipo_entrega = tipo_entrega  # 'mostrador' o 'mesa'
-        self.items: Dict[int, int] = {}  # producto_id -> cantidad
+        self.items: Dict[int, int] = {}   # producto_id -> cantidad
         self.total = 0.0
         self.estado = "creado"  # creado, pagado, listo, entregado
         self.created_at = datetime.now()
