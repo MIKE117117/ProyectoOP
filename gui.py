@@ -1,7 +1,7 @@
 # gui.py
 import tkinter as tk
 from tkinter import messagebox, ttk
-from models import Producto, Carrito
+from models import Carrito
 import controller
 import db
 
@@ -10,17 +10,22 @@ class App(tk.Tk):
         super().__init__()
         self.title("McD - Prototipo POO")
         self.geometry("800x500")
-        # Controlador / modelos
+
+        # Inicializar DB y productos
         db.init_db()
-        self.inventario = controller.cargar_inventario_desde_db()
-        # si no hay productos iniciales, crear algunos
-        if not self.inventario.productos:
+
+        # Si la tabla productos está vacía, crear productos demo
+        if not db.hay_productos():
+            print("No hay productos en BD, creando productos demo...")
             self._crear_productos_demo()
-            self.inventario = controller.cargar_inventario_desde_db()
+
+        # Cargar inventario desde DB
+        self.inventario = controller.cargar_inventario_desde_db()
 
         self.usuario_id = None
         self.carrito = Carrito(usuario_id=0)
-        # Componentes (>=5)
+
+        # Componentes
         self._crear_widgets()
         self._rellenar_lista_productos()
 
@@ -32,14 +37,14 @@ class App(tk.Tk):
         db.create_producto("Helado", 20.00, 12)
 
     def _crear_widgets(self):
-        # 1) Frame izquierdo: lista de productos (Listbox)
+        # 1) Frame izquierdo: lista de productos
         left = tk.Frame(self)
         left.pack(side=tk.LEFT, fill=tk.BOTH, expand=False, padx=10, pady=10)
 
         tk.Label(left, text="Productos").pack()
         self.lst_productos = tk.Listbox(left, width=35, height=20)
         self.lst_productos.pack()
-        self.lst_productos.bind("<<ListboxSelect>>", self.event_seleccionar_producto)  # evento
+        self.lst_productos.bind("<<ListboxSelect>>", self.event_seleccionar_producto)
 
         # 2) Botón agregar al carrito
         self.btn_agregar = tk.Button(left, text="Agregar al carrito", command=self.event_agregar_al_carrito)
@@ -53,7 +58,7 @@ class App(tk.Tk):
         self.lst_carrito = tk.Listbox(right, width=45, height=12)
         self.lst_carrito.pack()
 
-        # Entrada nombre, correo (para crear usuario / simular login)
+        # Entrada nombre, correo
         form = tk.Frame(right)
         form.pack(pady=8)
         tk.Label(form, text="Nombre:").grid(row=0, column=0, sticky="e")
@@ -63,13 +68,13 @@ class App(tk.Tk):
         self.entry_correo = tk.Entry(form)
         self.entry_correo.grid(row=1, column=1)
 
-        # Tipo de entrega (Combobox) - componente 4
+        # Tipo de entrega
         tk.Label(right, text="Tipo entrega:").pack()
         self.combo_entrega = ttk.Combobox(right, values=["mostrador", "mesa"], state="readonly")
         self.combo_entrega.set("mostrador")
         self.combo_entrega.pack()
 
-        # Botones de acciones: eliminar, pagar, refrescar
+        # Botones de acciones
         actions = tk.Frame(right)
         actions.pack(pady=6)
         self.btn_eliminar = tk.Button(actions, text="Eliminar seleccionado", command=self.event_eliminar_seleccion)
@@ -86,17 +91,19 @@ class App(tk.Tk):
     def _rellenar_lista_productos(self):
         self.lst_productos.delete(0, tk.END)
         for p in self.inventario.listar():
-            self.lst_productos.insert(tk.END, f"{p.producto_id} | {p.nombre} - ${p.precio:.2f} (Stock: {p.cantidad})")
+            self.lst_productos.insert(
+                tk.END,
+                f"{p.producto_id} | {p.nombre} - ${p.precio:.2f} (Stock: {p.cantidad})"
+            )
 
-    # Eventos (>=5)
+    # Eventos
     def event_seleccionar_producto(self, evt):
-        # Simple: muestra tooltip o activa boton
         selection = self.lst_productos.curselection()
         if not selection:
             return
-        idx = selection[0]
-        val = self.lst_productos.get(idx)
-        # Mostrar en mensaje (evento de selección)
+        # Podrías mostrar info si quieres
+        # idx = selection[0]
+        # val = self.lst_productos.get(idx)
         # messagebox.showinfo("Producto seleccionado", val)
 
     def event_agregar_al_carrito(self):
@@ -131,7 +138,6 @@ class App(tk.Tk):
         idx = sel[0]
         line = self.lst_carrito.get(idx)
         nombre = line.split(" x")[0]
-        # buscar producto por nombre (simple)
         pid = None
         for p in self.inventario.listar():
             if p.nombre == nombre:
@@ -148,16 +154,20 @@ class App(tk.Tk):
         if not nombre or not correo:
             messagebox.showwarning("Faltan datos", "Ingresa nombre y correo.")
             return
-        # crear usuario en DB y obtener id
+
         uid = db.create_usuario(nombre, correo)
         self.usuario_id = uid
         tipo_entrega = self.combo_entrega.get()
         if not self.carrito.items:
             messagebox.showinfo("Carrito vacío", "Agrega productos al carrito antes de pagar.")
             return
+
         pid = controller.crear_pedido_db(uid, tipo_entrega, self.carrito)
+        if pid is None:
+            messagebox.showerror("Error", "No se pudo crear el pedido.")
+            return
+
         messagebox.showinfo("Pedido creado", f"Pedido #{pid} creado. Gracias por su compra.")
-        # limpiar carrito
         self.carrito.clear()
         self._actualizar_lista_carrito()
         # refrescar inventario desde DB
